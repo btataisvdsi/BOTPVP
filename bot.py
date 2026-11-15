@@ -1,13 +1,13 @@
 import discord
 from discord.ext import commands, tasks
 import os
-import a2s
+import a2s  # المكتبة الجديدة
 
 # جلب المتغيرات من Railway
 TOKEN = os.environ.get("DISCORD_TOKEN")
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", 1571463916347727973))
 SERVER_IP = os.environ.get("SERVER_IP", "51.68.107.75")
-SERVER_PORT = int(os.environ.get("SERVER_PORT", 18458)) # تأكد من أن هذا هو بورت الاستعلام الصحيح (بورت اللعب + 123)
+SERVER_PORT = int(os.environ.get("SERVER_PORT", 18458)) # بورت الاستعلام (Query Port)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -28,7 +28,7 @@ async def update_status_panel():
     print("🔍 جاري الاستعلام عن سيرفر MTA...")
     
     try:
-        # استخدام مكتبة python-a2s للاستعلام عن السيرفر
+        # استخدام python-a2s للاستعلام عن السيرفر
         server_info = a2s.info((SERVER_IP, SERVER_PORT), timeout=5.0)
         
         embed = discord.Embed(
@@ -36,8 +36,6 @@ async def update_status_panel():
             color=discord.Color.green()
         )
         embed.add_field(name="الحالة", value="**ON** (يعمل)", inline=True)
-        # server_info.players هو عدد اللاعبين المتصلين
-        # server_info.max_players هو الحد الأقصى للاعبين
         embed.add_field(name="اللاعبون", value=f"**{server_info.players} / {server_info.max_players}**", inline=True)
         print(f"✅ السيرفر يعمل! اللاعبون: {server_info.players}/{server_info.max_players}")
         
