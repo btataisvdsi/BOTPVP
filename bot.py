@@ -1,88 +1,68 @@
 import discord
 from discord.ext import commands, tasks
 import os
-import requests
+import a2s
 
 # جلب المتغيرات من Railway
 TOKEN = os.environ.get("DISCORD_TOKEN")
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", 1571463916347727973))
 SERVER_IP = os.environ.get("SERVER_IP", "51.68.107.75")
-SERVER_PORT = int(os.environ.get("SERVER_PORT", 18458)) # البورت الصحيح
+SERVER_PORT = int(os.environ.get("SERVER_PORT", 18458)) # تأكد من أن هذا هو بورت الاستعلام الصحيح (بورت اللعب + 123)
 
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-def get_server_status(ip, port):
-    """
-    دالة لجلب حالة السيرفر باستخدام بروتوكول ASE.
-    ترجع قاموس (dict) فيه حالة السيرفر وعدد اللاعبين.
-    """
+@bot.event
+async def on_ready():
+    print(f"✅ تم تسجيل الدخول كـ {bot.user}")
+    update_status_panel.start()
+
+@tasks.loop(minutes=5)
+async def update_status_panel():
+    channel = bot.get_channel(CHANNEL_ID)
+    if not channel:
+        print(f"❌ لم يتم العثور على القناة بالمعرف: {CHANNEL_ID}")
+        return
+
+    print("🔍 جاري الاستعلام عن سيرفر MTA...")
+    
     try:
-        # إرسال طلب ASE
-        # ملاحظة: المكتبة تقوم بهذا تلقائياً، لكننا سنفعله يدوياً
-        # قد تحتاج لتثبيت مكتبة python-a2s أو استخدام طلبات HTTP إذا كان API متاح
-        # للأسف لا توجد طريقة مباشرة بسيطة، لذا سنستخدم requests للاتصال بـ API إذا توفر
-        # أو نستخدم مكتبة خارجية أخرى.
+        # استخدام مكتبة python-a2s للاستعلام عن السيرفر
+        server_info = a2s.info((SERVER_IP, SERVER_PORT), timeout=5.0)
         
-        # بما أن mtasanpystatus فشلت، سنستخدم طريقة بديلة
-        # يمكننا استخدام مكتبة `python-a2s` أو `gamedig` لكنها تحتاج تثبيت
-        # الأسهل هو استخدام requests إذا كان هناك API
-        # لكن السيرفر قد لا يوفر API مباشر.
-        
-        # سنستخدم طريقة بسيطة: إرسال طلب UDP باستخدام socket
-        import socket
-        import struct
-        
-        # بناء حزمة ASE query
-        # هذا معقد قليلاً، لذا سنستخدم مكتبة `a2s` إذا كانت متوفرة
-        # لكننا سنحاول استخدام طريقة أخرى
-        
-        # في الواقع، أفضل حل هو استخدام مكتبة `mtasanpystatus` بشكل صحيح
-        # الخطأ كان في استدعائها.
-        
-        # الطريقة الصحيحة لاستخدام mtasanpystatus حسب التوثيق:
-        # from mtasanpystatus import MTASANPyStatus
-        # server = MTASANPyStatus(ip, port)
-        
-        # لكن يبدو أن التوثيق غير واضح.
-        # سنستخدم طريقة `gamedig` أو `python-a2s`
-        
-        # بما أننا لا نستطيع تثبيت مكتبات جديدة الآن، سنستخدم try/except
-        # ونحاول استيراد المكتبة بشكل صحيح.
-        
-        # الحل النهائي: استخدام مكتبة `mtasanpystatus` لكن بالطريقة الصحيحة
-        # سأفترض أن هناك دالة `get_status` أو فئة `Server`
-        # سأبحث في الكود المصدري للمكتبة.
-        
-        # بما أنني لا أستطيع الوصول للكود المصدري، سأقترح استخدام مكتبة `python-a2s`
-        # التي هي معيار لاستعلام سيرفرات الألعاب.
-        
-        # لكن المستخدم يريد حلاً سريعاً. سأعطيه كوداً يستخدم `requests` للاتصال بـ API
-        # إذا كان السيرفر يدعم ذلك، وإلا سيعطيه كوداً يستخدم `socket` مباشرة.
-        
-        # الأفضل هو استخدام مكتبة `gamedig` لأنها بسيطة:
-        # from gamedig import GameDig
-        # server = GameDig.query(ip, port, 'mtasa')
-        
-        # لكن هذا يحتاج تثبيت `gamedig`. سأضيفه إلى requirements.
-        
-        # سأعطي المستخدم حلاً باستخدام `gamedig` وأطلب منه تثبيتها.
-        
-        # لكن بما أننا في منتصف المشكلة، سأعطيه حلاً يعمل مباشرة.
-        
-        # الحل: استخدام `socket` لإرسال طلب ASE.
-        # هذا الكود معقد، لكنه سيعمل.
-        
-        # سأعطي المستخدم كوداً جاهزاً يستخدم `socket`.
-        
-        # ... (سأكتب كود socket هنا)
-        
-        pass
+        embed = discord.Embed(
+            title="🟢 حالة سيرفر MTA - Lemehost",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="الحالة", value="**ON** (يعمل)", inline=True)
+        # server_info.players هو عدد اللاعبين المتصلين
+        # server_info.max_players هو الحد الأقصى للاعبين
+        embed.add_field(name="اللاعبون", value=f"**{server_info.players} / {server_info.max_players}**", inline=True)
+        print(f"✅ السيرفر يعمل! اللاعبون: {server_info.players}/{server_info.max_players}")
         
     except Exception as e:
-        print(f"Error: {e}")
-        return None
+        print(f"⚠️ السيرفر متوقف أو هناك مشكلة في الاتصال: {e}")
+        embed = discord.Embed(
+            title="🔴 حالة سيرفر MTA - Lemehost",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="الحالة", value="**OFF** (متوقف)", inline=True)
+        embed.add_field(name="اللاعبون", value="**0 / 0**", inline=True)
 
-# ... (باقي الكود)
+    try:
+        # البحث عن رسالة قديمة لتحديثها بدلاً من إرسال رسالة جديدة
+        async for message in channel.history(limit=50):
+            if message.author == bot.user and message.embeds:
+                await message.edit(embed=embed)
+                print("🔄 تم تحديث الرسالة القديمة.")
+                return
+                
+        # إذا لم يتم العثور على رسالة، أرسل واحدة جديدة
+        await channel.send(embed=embed)
+        print("📩 تم إرسال رسالة جديدة إلى القناة.")
+    except Exception as e:
+        print(f"❌ فشل في إرسال الرسالة. تحقق من صلاحيات البوت: {e}")
+
+# تشغيل البوت
+bot.run(TOKEN)
