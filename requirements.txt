@@ -1,2 +1,52 @@
-discord.py
-mtasanpystatus
+import discord
+from discord.ext import commands, tasks
+import os
+from gamedig import GameDig
+
+TOKEN = os.environ.get("DISCORD_TOKEN")
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID", 1571463916347727973))
+SERVER_IP = os.environ.get("SERVER_IP", "51.68.107.75")
+SERVER_PORT = int(os.environ.get("SERVER_PORT", 18458))
+
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+@bot.event
+async def on_ready():
+    print(f"✅ تم تسجيل الدخول كـ {bot.user}")
+    update_status_panel.start()
+
+@tasks.loop(minutes=5)
+async def update_status_panel():
+    channel = bot.get_channel(CHANNEL_ID)
+    if not channel:
+        return
+
+    try:
+        # استخدام gamedig للاستعلام عن السيرفر
+        server = GameDig.query(SERVER_IP, SERVER_PORT, 'mtasa')
+        embed = discord.Embed(
+            title="🟢 حالة سيرفر MTA - Lemehost",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="الحالة", value="**ON** (يعمل)", inline=True)
+        embed.add_field(name="اللاعبون", value=f"**{server.players} / {server.maxplayers}**", inline=True)
+        print("✅ السيرفر شاعل!")
+    except Exception as e:
+        print(f"⚠️ السيرفر طافي: {e}")
+        embed = discord.Embed(
+            title="🔴 حالة سيرفر MTA - Lemehost",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="الحالة", value="**OFF** (متوقف)", inline=True)
+        embed.add_field(name="اللاعبون", value="**0 / 0**", inline=True)
+
+    # تحديث الرسالة القديمة أو إرسال جديدة
+    async for message in channel.history(limit=50):
+        if message.author == bot.user and message.embeds:
+            await message.edit(embed=embed)
+            return
+    await channel.send(embed=embed)
+
+bot.run(TOKEN)
