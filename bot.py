@@ -2,31 +2,35 @@ import discord
 from discord.ext import commands, tasks
 import mtasanpystatus
 import os
-import asyncio
-import time
 
-# جلب التوكن من إعدادات GitHub (Secrets)
+# جلب التوكن
 TOKEN = os.environ.get("DISCORD_TOKEN")
 CHANNEL_ID = 1571463916347727973
 SERVER_IP = "51.68.107.75"
-SERVER_PORT = 13335  # البورت اللي كيبان فالتصويرة
+SERVER_PORT = 13335  # إلا ما خدمش جرب 13458
 
 intents = discord.Intents.default()
+intents.message_content = True # ضرورية باش البوت يقرا ويتفاعل
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"تم تسجيل الدخول كـ {bot.user}")
+    print(f"✅ تم تسجيل الدخول كـ {bot.user}")
+    print(f"📡 البوت متصل مع السيرفرات: {len(bot.guilds)}")
     update_status_panel.start()
 
-@tasks.loop(minutes=5) # التحديث كل 5 دقايق
+@tasks.loop(minutes=5)
 async def update_status_panel():
     channel = bot.get_channel(CHANNEL_ID)
     if not channel:
+        print(f"❌ ما لقيتش الروم بالـ ID: {CHANNEL_ID}. تأكد من ID الروم والصلاحيات.")
         return
 
+    print("🔍 كنشيك على سيرفر MTA...")
+    
     try:
-        # محاولة جلب حالة السيرفر
+        # محاولة الاتصال بالسيرفر
         server = mtasanpystatus(ip=SERVER_IP, port=SERVER_PORT)
         
         embed = discord.Embed(
@@ -35,8 +39,10 @@ async def update_status_panel():
         )
         embed.add_field(name="الحالة", value="**ON** (يعمل)", inline=True)
         embed.add_field(name="اللاعبون", value=f"**{server.players} / {server.maxplayers}**", inline=True)
+        print("✅ السيرفر شاعل!")
         
     except Exception as e:
+        print(f"⚠️ السيرفر طافي أو كاين مشكل فـ الاتصال: {e}")
         embed = discord.Embed(
             title="🔴 حالة سيرفر MTA - Lemehost",
             color=discord.Color.red()
@@ -44,20 +50,19 @@ async def update_status_panel():
         embed.add_field(name="الحالة", value="**OFF** (متوقف)", inline=True)
         embed.add_field(name="اللاعبون", value="**0 / 0**", inline=True)
 
-    # البحث على رسالة قديمة ديال البوت باش نعدلوها (باش ما نعمروش الروم بالرسائل)
-    async for message in channel.history(limit=50):
-        if message.author == bot.user and message.embeds:
-            await message.edit(embed=embed)
-            return
-            
-    # إلا ما لقيناش رسالة، كنصيفطو واحدة جديدة
-    await channel.send(embed=embed)
+    try:
+        # البحث على رسالة قديمة باش نعدلوها
+        async for message in channel.history(limit=50):
+            if message.author == bot.user and message.embeds:
+                await message.edit(embed=embed)
+                print("🔄 تم تحديث الرسالة القديمة.")
+                return
+                
+        # إلا ما لقيناش رسالة، كنصيفطو جديدة
+        await channel.send(embed=embed)
+        print("📩 تم إرسال رسالة جديدة للروم.")
+    except Exception as e:
+        print(f"❌ ما قدرتش نصيفط الرسالة. تأكد من صلاحيات البوت فـ الروم: {e}")
 
-# هاد الدالة كتخلي البوت يخدم لمدة 3.5 سوايع ومن بعد كيطفى باش GitHub Actions يبدل العملية بجديدة
-async def main():
-    async with bot:
-        await bot.start(TOKEN)
-
-if __name__ == "__main__":
-    # كنديرو وقت محدد باش البوت ما يتقتلش من طرف GitHub
-    time.sleep(3.5 * 60 * 60) # كيخدم 3 سوايع و 30 دقيقة
+# تشغيل البوت
+bot.run(TOKEN)
