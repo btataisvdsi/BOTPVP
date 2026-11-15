@@ -3,28 +3,27 @@ from discord.ext import commands, tasks
 import mtasanpystatus
 import os
 
-# جلب التوكن
+# جلب المتغيرات من Railway
 TOKEN = os.environ.get("DISCORD_TOKEN")
-CHANNEL_ID = 1571463916347727973
-SERVER_IP = "51.68.107.75"
-SERVER_PORT = 13335  # إلا ما خدمش جرب 13458
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID", 1571463916347727973))
+SERVER_IP = os.environ.get("SERVER_IP", "51.68.107.75")
+SERVER_PORT = int(os.environ.get("SERVER_PORT", 13458)) # البورت الصحيح
 
 intents = discord.Intents.default()
-intents.message_content = True # ضرورية باش البوت يقرا ويتفاعل
+intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
     print(f"✅ تم تسجيل الدخول كـ {bot.user}")
-    print(f"📡 البوت متصل مع السيرفرات: {len(bot.guilds)}")
     update_status_panel.start()
 
 @tasks.loop(minutes=5)
 async def update_status_panel():
     channel = bot.get_channel(CHANNEL_ID)
     if not channel:
-        print(f"❌ ما لقيتش الروم بالـ ID: {CHANNEL_ID}. تأكد من ID الروم والصلاحيات.")
+        print(f"❌ ما لقيتش الروم بالـ ID: {CHANNEL_ID}")
         return
 
     print("🔍 كنشيك على سيرفر MTA...")
@@ -51,18 +50,15 @@ async def update_status_panel():
         embed.add_field(name="اللاعبون", value="**0 / 0**", inline=True)
 
     try:
-        # البحث على رسالة قديمة باش نعدلوها
         async for message in channel.history(limit=50):
             if message.author == bot.user and message.embeds:
                 await message.edit(embed=embed)
                 print("🔄 تم تحديث الرسالة القديمة.")
                 return
                 
-        # إلا ما لقيناش رسالة، كنصيفطو جديدة
         await channel.send(embed=embed)
         print("📩 تم إرسال رسالة جديدة للروم.")
     except Exception as e:
-        print(f"❌ ما قدرتش نصيفط الرسالة. تأكد من صلاحيات البوت فـ الروم: {e}")
+        print(f"❌ ما قدرتش نصيفط الرسالة. تأكد من صلاحيات البوت: {e}")
 
-# تشغيل البوت
 bot.run(TOKEN)
